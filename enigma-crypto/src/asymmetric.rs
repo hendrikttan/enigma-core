@@ -105,7 +105,7 @@ impl KeyPair {
     /// let recovered_pubkey = KeyPair::recover(msg, sig).unwrap();
     /// ```
     pub fn recover(message: &[u8], sig: [u8;65]) -> Result<[u8; 64], CryptoError> {
-        let recovery = RecoveryId::parse(sig[64] -27)
+        let recovery = RecoveryId::parse(sig[64] -27) // TODO: Check for overflow.
             .map_err(|_| CryptoError::ParsingError { sig })?;
         let signature = Signature::parse_slice(&sig[..64])
             .map_err(|_| CryptoError::ParsingError { sig } )?;

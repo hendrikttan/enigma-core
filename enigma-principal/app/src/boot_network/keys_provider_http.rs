@@ -123,7 +123,7 @@ impl PrincipalHttpServer {
                 Err(err) => {
                     return Err(ServerError {
                         code: ErrorCode::InternalError,
-                        message: format!("Unable to get keys: {:?}", err),
+                        message: format!("Unable to get keys: {}", err),
                         data: None,
                     });
                 }

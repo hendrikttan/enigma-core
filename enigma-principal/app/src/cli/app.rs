@@ -22,7 +22,7 @@ pub fn start(eid: sgx_enclave_id_t, opt: Opt) -> Result<(), Error> {
     let mut principal_config = PrincipalManager::load_config(&opt.principal_config)?;
 
     let report_manager = ReportManager::new(principal_config.clone(), eid)?;
-    let signing_address = "";
+    let signing_address = report_manager.get_signing_address()?;
 
     if opt.info { // Print information.
         cli::options::print_info(&signing_address);
