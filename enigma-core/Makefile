@@ -32,6 +32,9 @@ $(error Cannot set DEBUG and SGX_PRERELEASE at the same time!!)
 endif
 endif
 
+ifneq ($(BACKTRACE), 1)
+	BACKTRACE := 0
+endif
 
 ifeq ($(DEBUG), 1)
 	SGX_COMMON_CFLAGS += -O0 -g
@@ -148,7 +151,7 @@ compiler-rt:
 
 .PHONY: test
 test: all
-	@cd app && cargo test $(App_Rust_Flags)
+	@cd app && RUST_BACKTRACE=$(BACKTRACE) cargo test test_eth_bridge $(App_Rust_Flags)
 
 .PHONY: clean
 clean:
