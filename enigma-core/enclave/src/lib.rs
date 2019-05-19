@@ -83,6 +83,7 @@ pub unsafe extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize, cal
                                    preprocessor: *const u8, preprocessor_len: usize, callback: *const u8,
                                    callback_len: usize, output: *mut u8, signature: &mut [u8; 65],
                                    result_len: &mut usize) -> EnclaveReturn {
+    backtrace();
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
     let callable_slice = slice::from_raw_parts(callable, callable_len);
     let callable_args_slice = slice::from_raw_parts(callable_args, callable_args_len);
@@ -118,6 +119,7 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                                        args: *const u8, args_len: usize,
                                        user_key: &[u8; 64], contract_address: &ContractAddress,
                                        gas_limit: *const u64, db_ptr: *const RawPointer, result: &mut ExecuteResult) -> EnclaveReturn {
+    backtrace();
     let bytecode = slice::from_raw_parts(bytecode, bytecode_len);
     let callable = slice::from_raw_parts(callable, callable_len);
     let args = slice::from_raw_parts(args, args_len);
@@ -163,6 +165,7 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
                                       address: &ContractAddress, user_key: &PubKey,
                                       gas_limit: *const u64, db_ptr: *const RawPointer,
                                       result: &mut ExecuteResult) -> EnclaveReturn {
+    backtrace();
     let args = slice::from_raw_parts(args, args_len);
     let bytecode = slice::from_raw_parts(bytecode, bytecode_len);
     let constructor = slice::from_raw_parts(constructor, constructor_len);
@@ -182,6 +185,7 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
 
 #[no_mangle]
 pub unsafe extern "C" fn ecall_ptt_req(address: *const ContractAddress, len: usize, sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
+    backtrace();
     let address_list = slice::from_raw_parts(address, len/mem::size_of::<ContractAddress>());
     let msg = match ecall_ptt_req_internal(address_list, sig) {
         Ok(msg) => msg,
@@ -196,12 +200,14 @@ pub unsafe extern "C" fn ecall_ptt_req(address: *const ContractAddress, len: usi
 
 #[no_mangle]
 pub unsafe extern "C" fn ecall_ptt_res(msg_ptr: *const u8, msg_len: usize) -> EnclaveReturn {
+    backtrace();
     let msg_slice = slice::from_raw_parts(msg_ptr, msg_len);
     ecall_ptt_res_internal(msg_slice).into()
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ecall_build_state(db_ptr: *const RawPointer, failed_ptr: *mut u64) -> EnclaveReturn {
+    backtrace();
     let failed_contracts = match ecall_build_state_internal(db_ptr) {
         Ok(c) => c,
         Err(e) => return e.into(),
@@ -216,6 +222,7 @@ pub unsafe extern "C" fn ecall_build_state(db_ptr: *const RawPointer, failed_ptr
 
 #[no_mangle]
 pub unsafe extern "C" fn ecall_get_user_key(sig: &mut [u8; 65], user_pubkey: &PubKey, serialized_ptr: *mut u64) -> EnclaveReturn {
+    backtrace();
     let msg = match ecall_get_user_key_internal(sig, user_pubkey) {
         Ok(msg) => msg,
         Err(e) => return e.into(),
@@ -231,6 +238,7 @@ pub unsafe extern "C" fn ecall_get_user_key(sig: &mut [u8; 65], user_pubkey: &Pu
 unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], callable_args_slice: &[u8],
                              preprocessor_slice: &[u8], callback_slice: &[u8], output: *mut u8,
                              signature: &mut [u8; 65], result_len: &mut usize) -> Result<(), EnclaveError> {
+    backtrace();
 
     let callable_args = hexutil::read_hex(str::from_utf8(callable_args_slice)?)?;
     let bytecode = hexutil::read_hex(str::from_utf8(bytecode_slice)?)?;
@@ -274,6 +282,7 @@ fn decrypt_inputs(callable: &[u8], args: &[u8], inputs_key: &DhKey) -> Result<(V
         get_types(&decrypted_callable_str)?
     };
     Ok((decrypted_args, decrypted_callable, types, function_name))
+
 }
 
 fn save_enc_delta(db_ptr: *const RawPointer, delta: &Option<EncryptedPatch>) -> Result<Hash256, EnclaveError> {
@@ -416,6 +425,10 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
                                 address: ContractAddress, user_key: &PubKey, io_key: &DhKey,
                                 gas_limit: u64, db_ptr: *const RawPointer,
                                 result: &mut ExecuteResult) -> Result<(), EnclaveError> {
+//    use std::backtrace::{self, PrintFormat};
+//    backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Full).unwrap();
+
+    backtrace();
 
     let pre_code_hash = bytecode.keccak256();
     let inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[constructor, args, &pre_code_hash[..], user_key][..]).keccak256();
@@ -503,6 +516,22 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
         Err(err) => panic!("Failed obtaining keys: {:?}", err),
     }
 }
+
+/// For some reason the backtrace isn't always right.
+/// Need to investigate further.
+fn backtrace() {
+    #[cfg(feature = "backtrace")]
+    {
+        use std::sync::Once;
+        static INIT_CONTEXT: Once = Once::new();
+        INIT_CONTEXT.call_once(|| {
+            use std::backtrace::{self, PrintFormat};
+            backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Short).unwrap();
+        });
+    }
+}
+
+
 
 pub mod tests {
     use enigma_types::RawPointer;
