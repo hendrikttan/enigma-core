@@ -7,12 +7,6 @@ authors = ["Enigma <support@enigma.co>"]
 name = "enigmacoreenclave"
 crate-type = ["staticlib"]
 
-[features]
-default = []
-
-#[profile.release]
-#debug = true
-
 [dependencies]
 enigma-types = { path = "../../enigma-types", default-features = false, features = ["sgx"] }
 enigma-crypto = { path = "../../enigma-crypto", default-features = false, features = ["sgx", "asymmetric"] }
@@ -35,8 +29,10 @@ sputnikvm = { git = "https://github.com/enigmampc/sputnikvm.git", rev = "enigma-
 serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
 wasmi = { git = "https://github.com/enigmampc/wasmi", rev = "sgx-1.0.7" }
 
-
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
 sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
 sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
 sgx_tunittest = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
+
+[features]
+backtrace = ["sgx_tstd/backtrace"]
