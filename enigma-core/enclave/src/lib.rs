@@ -501,92 +501,57 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 }
 
 pub mod tests {
-    use enigma_types::RawPointer;
-    use enigma_types::ResultStatus;
+    use enigma_types::{RawPointer, ResultStatus};
 
     #[cfg(debug_assertions)]
     mod internal_tests {
-        extern crate sgx_tstd as std;
         extern crate sgx_tunittest;
-
-        use crate::km_t::principal::tests::*;
-        use crate::wasm_g::execution::tests::*;
-        use enigma_runtime_t::data::tests::*;
-        use enigma_runtime_t::ocalls_t::tests::*;
-        use enigma_tools_t::storage_t::tests::*;
-        use self::sgx_tunittest::*;
-        use std::{vec::Vec, string::String};
-        use std::panic::UnwindSafe;
+        use self::sgx_tunittest::rsgx_unit_tests;
         use enigma_types::{RawPointer, ResultStatus};
+        use crate::km_t::principal::tests::*;
+        use enigma_runtime_t::ocalls_t::tests::*;
+        use self::sgx_tunittest::*;
+        use std::prelude::v1::*;
 
         pub fn internal_tests(db_ptr: *const RawPointer) -> ResultStatus {
-            let mut ctr = 0u64;
-            let mut failures = Vec::new();
-            rsgx_unit_test_start();
+            let test_me = || test_me(db_ptr);
+            let test_get_deltas = || test_get_deltas(db_ptr);
+            let test_get_deltas_more = || test_get_deltas_more(db_ptr);
+            let test_state_internal = || test_state_internal(db_ptr);
+            let test_state = || test_state(db_ptr);
 
-            // The reason I had to make our own tests is because baidu's unittest lib supports only static functions that get no inputs.
-            core_unitests(&mut ctr, &mut failures, test_full_sealing_storage, "test_full_sealing_storage" );
-//        core_unitests(&mut ctr, &mut failures,  test_ecall_evm_signning, "test_ecall_evm_signning" );
-            core_unitests(&mut ctr, &mut failures, test_encrypt_state, "test_encrypt_state" );
-            core_unitests(&mut ctr, &mut failures, test_decrypt_state, "test_decrypt_state" );
-            core_unitests(&mut ctr, &mut failures, test_encrypt_decrypt_state, "test_encrypt_decrypt_state" );
-            core_unitests(&mut ctr, &mut failures, test_write_state, "test_write_state" );
-            core_unitests(&mut ctr, &mut failures, test_read_state, "test_read_state" );
-            core_unitests(&mut ctr, &mut failures, test_diff_patch, "test_diff_patch" );
-            core_unitests(&mut ctr, &mut failures, test_encrypt_patch, "test_encrypt_patch" );
-            core_unitests(&mut ctr, &mut failures, test_decrypt_patch, "test_decrypt_patch" );
-            core_unitests(&mut ctr, &mut failures, test_encrypt_decrypt_patch, "test_encrypt_decrypt_patch" );
-            core_unitests(&mut ctr, &mut failures, test_apply_delta, "test_apply_delta" );
-            core_unitests(&mut ctr, &mut failures, test_generate_delta, "test_generate_delta" );
-            core_unitests(&mut ctr, &mut failures, ||test_me(db_ptr), "test_me" );
-            core_unitests(&mut ctr, &mut failures, test_execute_contract, "test_execute_contract" );
-            core_unitests(&mut ctr, &mut failures, ||test_get_deltas(db_ptr), "test_get_deltas" );
-            core_unitests(&mut ctr, &mut failures, ||test_get_deltas_more(db_ptr), "test_get_deltas_more" );
-            core_unitests(&mut ctr, &mut failures, ||test_state_internal(db_ptr), "test_state_internal" );
-            core_unitests(&mut ctr, &mut failures, || {test_state(db_ptr)}, "test_state" );
-
-
-            let result = failures.is_empty();
-            rsgx_unit_test_end(ctr, failures);
+            let failed_amount = rsgx_unit_tests! {
+                enigma_tools_t::storage_t::tests::test_full_sealing_storage,
+                enigma_runtime_t::data::tests::test_encrypt_state,
+                enigma_runtime_t::data::tests::test_decrypt_state,
+                enigma_runtime_t::data::tests::test_encrypt_decrypt_state,
+                enigma_runtime_t::data::tests::test_write_state,
+                enigma_runtime_t::data::tests::test_read_state,
+                enigma_runtime_t::data::tests::test_diff_patch,
+                enigma_runtime_t::data::tests::test_encrypt_patch,
+                enigma_runtime_t::data::tests::test_decrypt_patch,
+                enigma_runtime_t::data::tests::test_encrypt_decrypt_patch,
+                enigma_runtime_t::data::tests::test_apply_delta,
+                enigma_runtime_t::data::tests::test_generate_delta,
+                crate::wasm_g::execution::tests::test_execute_contract,
+                test_me,
+                test_get_deltas,
+                test_get_deltas_more,
+                test_state_internal,
+                test_state
+            };
+            let result = failed_amount == 0;
             result.into()
         }
-
-
-        /// Perform one test case at a time.
-        ///
-        /// This is the core function of sgx_tunittest. It runs one test case at a
-        /// time and saves the result. On test passes, it increases the passed counter
-        /// and on test fails, it records the failed test.
-        fn core_unitests<F, R>(ncases: &mut u64, failurecases: &mut Vec<String>, f:F, name: &str )
-            where F: FnOnce() -> R + UnwindSafe {
-            *ncases = *ncases + 1;
-            match std::panic::catch_unwind (|| { f(); } ).is_ok() {
-                true => {
-                    debug_println!("{} {} ... {}!",
-                         "testing",
-                         name,
-                         "\x1B[1;32mok\x1B[0m");
-                },
-                false => {
-                    debug_println!("{} {} ... {}!",
-                         "testing",
-                         name,
-                         "\x1B[1;31mfailed\x1B[0m");
-                    failurecases.push(String::from(name));
-                },
-            }
-        }
-
     }
 
-    //    use crate::km_t::users::tests::*;
-
     #[no_mangle]
-    pub extern "C" fn ecall_run_tests(db_ptr: *const RawPointer, result: *mut ResultStatus) {
-        unsafe {*result = ResultStatus::Ok};
-        #[cfg(debug_assertions)] {
+    pub unsafe extern "C" fn ecall_run_tests(db_ptr: *const RawPointer, result: *mut ResultStatus) {
+        if cfg!(debug_assertions) {
             let internal_tests_result = self::internal_tests::internal_tests(db_ptr);
-            unsafe {*result = internal_tests_result};
+            *result = internal_tests_result;
+        } else {
+            *result = ResultStatus::Ok;
         }
     }
 
